@@ -3,13 +3,13 @@
   hosts: all
   vars:
     azure:
-      service_principal_id: "{{ lookup('env', 'AZURE_SP_ID') }}"
-      service_principal_secret: "{{ lookup('env', 'AZURE_SP_SECRET') }}"
-      resource_group: "{{ lookup('env', 'AZURE_RG') }}"
-      tenant_id: "{{ lookup('env', 'AZURE_TENANT_ID') }}"
-      subscription_id: "{{ lookup('env', 'AZURE_SUB_ID') }}"
-      version: "{{ lookup('env', 'AZURE_ARC_VERSION') }}"
-      location: 'germanywestcentral'
+      service_principal_id: "{{ azure.AZURE_SP_ID }}"
+      service_principal_secret: "{{ azure.AZURE_SP_SECRET }}"
+      resource_group: "{{ azure.AZURE_RG }}"
+      tenant_id: "{{ azure.AZURE_TENANT_ID }}"
+      subscription_id: "{{ azure.AZURE_SUB_ID }}"
+      version: "{{ azure.AZURE_ARC_VERSION }}"
+      location: "{{ azure.location }}"
       proxy: ''
   tasks:
     - name: Check if Connected Machine Agent MSI already exists
