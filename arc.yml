@@ -1,27 +1,37 @@
 ---
-- name: "Show Azure variables from AWX template"
+- name: "Onboard Windows Servers to Azure Arc-enabled servers with Public endpoint connectivity"
   hosts: all
-  gather_facts: false
+  vars:
+    azure:
+      service_principal_id: "{{ azure.AZURE_SP_ID }}"
+      service_principal_secret: "{{ azure.AZURE_SP_SECRET }}"
+      resource_group: "{{ azure.AZURE_RG }}"
+      tenant_id: "{{ azure.AZURE_TENANT_ID }}"
+      subscription_id: "{{ azure.AZURE_SUB_ID }}"
+      version: "{{ azure.AZURE_ARC_VERSION }}"
+      location: "{{ azure.location }}"
+      proxy: ''
   tasks:
-    - name: Debug raw azure dictionary
-      debug:
-        var: azure
-
-    - name: Show Azure variables individually
+    - name: Show mapped azure variables
       debug:
         msg: |
-          AZURE_SP_ID: {{ azure.AZURE_SP_ID | default('NOT SET') }}
-          AZURE_SP_SECRET: {{ azure.AZURE_SP_SECRET | default('NOT SET') }}
-          AZURE_RG: {{ azure.AZURE_RG | default('NOT SET') }}
-          AZURE_TENANT_ID: {{ azure.AZURE_TENANT_ID | default('NOT SET') }}
-          AZURE_SUB_ID: {{ azure.AZURE_SUB_ID | default('NOT SET') }}
-          AZURE_ARC_VERSION: {{ azure.AZURE_ARC_VERSION | default('NOT SET') }}
+          service_principal_id: {{ azure.service_principal_id | default('NOT SET') }}
+          service_principal_secret: {{ azure.service_principal_secret | default('NOT SET') }}
+          resource_group: {{ azure.resource_group | default('NOT SET') }}
+          tenant_id: {{ azure.tenant_id | default('NOT SET') }}
+          subscription_id: {{ azure.subscription_id | default('NOT SET') }}
+          version: {{ azure.version | default('NOT SET') }}
           location: {{ azure.location | default('NOT SET') }}
+          proxy: {{ azure.proxy | default('NOT SET') }}
 
-    # Example usage for a task that needs the value
-    - name: Example - Show ARC version as a separate fact
+    # Example usage in tasks
+    - name: Example - Use service principal ID
       debug:
-        msg: "Arc Agent Target Version: {{ azure.AZURE_ARC_VERSION }}"
+        msg: "Service Principal ID: {{ azure.service_principal_id }}"
+
+    - name: Example - Use subscription ID
+      debug:
+        msg: "Subscription ID: {{ azure.subscription_id }}"
   #tasks:
     # - name: Check if Connected Machine Agent MSI already exists
     #   win_stat:
