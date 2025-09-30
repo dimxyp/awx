@@ -8,6 +8,7 @@
       resource_group: "{{ lookup('env', 'AZURE_RG') }}"
       tenant_id: "{{ lookup('env', 'AZURE_TENANT_ID') }}"
       subscription_id: "{{ lookup('env', 'AZURE_SUB_ID') }}"
+      version: "{{ lookup('env', 'AZURE_ARC_VERSION') }}"
       location: 'germanywestcentral'
       proxy: ''
   tasks:
@@ -44,9 +45,35 @@
         azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
       when: azcmagent_version is defined
 
+    - name: Compare Arc agent version and uninstall if outdated
+      win_package:
+        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+        state: absent
+      when: 
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor | float < azure.version | float
+
+    - name: Download the Connected Machine Agent MSI for upgrade
+      win_get_url:
+        url: https://aka.ms/AzureConnectedMachineAgent
+        dest: C:\AzureConnectedMachineAgent.msi
+      when: 
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor | float < azure.version | float
+
+    - name: Install the Connected Machine Agent MSI for upgrade
+      win_package:
+        path: C:\AzureConnectedMachineAgent.msi
+      when:
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor | float < azure.version | float
+
     - name: Show Arc agent version
       debug:
-        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}"
+        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ azure.version }}"
 
     # - name: Check if the Connected Machine Agent has already been connected on Windows
     #   win_command: azcmagent check --location "{{ azure.location }}"
