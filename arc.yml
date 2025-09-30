@@ -11,69 +11,82 @@
       version: "{{ azure.AZURE_ARC_VERSION }}"
       location: "{{ azure.location }}"
       proxy: ''
-  tasks:
-    - name: Check if Connected Machine Agent MSI already exists
-      win_stat:
-        path: C:\AzureConnectedMachineAgent.msi
-      register: azcmagent_win_downloaded
-      when: ansible_os_family == 'Windows'
 
-    - name: Download the Connected Machine Agent on Windows servers
-      win_get_url:
-        url: https://aka.ms/AzureConnectedMachineAgent
-        dest: C:\AzureConnectedMachineAgent.msi
-      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+- name: Show azure variables nicely
+  debug:
+    msg: |
+      service_principal_id: {{ azure.service_principal_id }}
+      service_principal_secret: {{ azure.service_principal_secret }}
+      resource_group: {{ azure.resource_group }}
+      tenant_id: {{ azure.tenant_id }}
+      subscription_id: {{ azure.subscription_id }}
+      version: {{ azure.version }}
+      location: {{ azure.location }}
+  #tasks:
+    # - name: Check if Connected Machine Agent MSI already exists
+    #   win_stat:
+    #     path: C:\AzureConnectedMachineAgent.msi
+    #   register: azcmagent_win_downloaded
+    #   when: ansible_os_family == 'Windows'
 
-    - name: Install the Connected Machine Agent on Windows servers
-      win_package:
-        path: C:\AzureConnectedMachineAgent.msi
-      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+    # - name: Download the Connected Machine Agent on Windows servers
+    #   win_get_url:
+    #     url: https://aka.ms/AzureConnectedMachineAgent
+    #     dest: C:\AzureConnectedMachineAgent.msi
+    #   when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
 
-    - name: Check if Azure Connected Machine Agent is installed
-      win_stat:
-        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
-      register: azcmagent_installed
-      when: ansible_os_family == 'Windows'
+    # - name: Install the Connected Machine Agent on Windows servers
+    #   win_package:
+    #     path: C:\AzureConnectedMachineAgent.msi
+    #   when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
 
-    - name: Get Azure Connected Machine Agent version
-      win_command: '"C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" version'
-      register: azcmagent_version
-      when: azcmagent_installed.stat.exists
+    # - name: Check if Azure Connected Machine Agent is installed
+    #   win_stat:
+    #     path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+    #   register: azcmagent_installed
+    #   when: ansible_os_family == 'Windows'
 
-    - name: Extract major.minor version
-      set_fact:
-        azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
-      when: azcmagent_version is defined
+    # - name: Get Azure Connected Machine Agent version
+    #   win_command: '"C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" version'
+    #   register: azcmagent_version
+    #   when: azcmagent_installed.stat.exists
 
-    - name: Compare Arc agent version and uninstall if outdated
-      win_package:
-        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
-        state: absent
-      when: 
-        - ansible_os_family == 'Windows'
-        - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+    # - name: Extract major.minor version
+    #   set_fact:
+    #     azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
+    #   when: azcmagent_version is defined
 
-    - name: Download the Connected Machine Agent MSI for upgrade
-      win_get_url:
-        url: https://aka.ms/AzureConnectedMachineAgent
-        dest: C:\AzureConnectedMachineAgent.msi
-      when: 
-        - ansible_os_family == 'Windows'
-        - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+    # - name: Compare Arc agent version and uninstall if outdated
+    #   win_package:
+    #     path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+    #     state: absent
+    #   when: 
+    #     - ansible_os_family == 'Windows'
+    #     - azcmagent_version_major_minor is defined
+    #     - azcmagent_version_major_minor | float < azure.version | float
 
-    - name: Install the Connected Machine Agent MSI for upgrade
-      win_package:
-        path: C:\AzureConnectedMachineAgent.msi
-      when:
-        - ansible_os_family == 'Windows'
-        - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+    # - name: Download the Connected Machine Agent MSI for upgrade
+    #   win_get_url:
+    #     url: https://aka.ms/AzureConnectedMachineAgent
+    #     dest: C:\AzureConnectedMachineAgent.msi
+    #   when: 
+    #     - ansible_os_family == 'Windows'
+    #     - azcmagent_version_major_minor is defined
+    #     - azcmagent_version_major_minor | float < azure.version | float
 
-    - name: Show Arc agent version
-      debug:
-        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ azure.version }}"
+    # - name: Install the Connected Machine Agent MSI for upgrade
+    #   win_package:
+    #     path: C:\AzureConnectedMachineAgent.msi
+    #   when:
+    #     - ansible_os_family == 'Windows'
+    #     - azcmagent_version_major_minor is defined
+    #     - azcmagent_version_major_minor | float < azure.version | float
+
+    # - name: Show Arc agent version
+    #   debug:
+    #     msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ azure.version }}"
+
+    #################################
 
     # - name: Check if the Connected Machine Agent has already been connected on Windows
     #   win_command: azcmagent check --location "{{ azure.location }}"
