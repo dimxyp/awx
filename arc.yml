@@ -42,67 +42,71 @@
 
     - name: Extract major.minor version
       set_fact:
-        azcmagent_version_major_minor: >-
-          {{
-            (azcmagent_version.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+\\.[0-9]+', '\\1'))
-          }}
-      when: azcmagent_version is defined and
-            (azcmagent_version.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+\\.[0-9]+')) is not none
+        azcmagent_version_major_minor: "{{ azcmagent_version.stdout | regex_search('\\d+\\.\\d+') }}"
+      when: azcmagent_version is defined 
 
-    - name: Debug extracted agent major.minor version
-      debug:
-        msg: "Extracted major.minor agent version: {{ azcmagent_version_major_minor | default('NOT FOUND') }}"
+    - name: Fail if version could not be parsed (agent expected installed)
+      fail:
+        msg: "Could not parse azcmagent major.minor version from output: {{ azcmagent_version.stdout }}"
+      when: azcmagent_version_major_minor is not defined
+
+    # OPTIONAL: normalize arc_version to major.minor in case it includes patch/build
+    - name: Normalize target arc major.minor version
+      set_fact:
+        arc_version_major_minor: "{{ arc_version | regex_search('\\d+\\.\\d+') | default(arc_version) }}"
 
     - name: Debug - Show detected and desired versions before uninstall
       debug:
         msg: |
-          Arc agent installed version: {{ azcmagent_version_major_minor }}
-          Target version: {{ arc_version }}
-          Uninstall will run because {{ azcmagent_version_major_minor }} <= {{ arc_version }}
-      when: 
+          Installed (major.minor): {{ azcmagent_version_major_minor }}
+          Target (major.minor):    {{ arc_version_major_minor }}
+          Condition (installed <= target): {{ (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float) }}
+      when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float <= arc_version | float
+        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Compare Arc agent version and uninstall if outdated
+    - name: Uninstall agent if version <= target (adjust to < if you only want older)
       win_package:
         path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
         state: absent
-      when: 
+      when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float <= arc_version | float
+        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Remove existing Connected Machine Agent MSI file before upgrade
+    - name: Remove existing MSI prior to (re)install
       win_file:
         path: C:\AzureConnectedMachineAgent.msi
         state: absent
-      when: 
+      when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float <= arc_version | float
+        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Download the Connected Machine Agent MSI for upgrade
+    - name: Download MSI for upgrade / reinstall
       win_get_url:
         url: https://aka.ms/AzureConnectedMachineAgent
         dest: C:\AzureConnectedMachineAgent.msi
-      when: 
+      when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float <= arc_version | float
+        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Install the Connected Machine Agent MSI for upgrade
+    - name: Install (upgrade) Connected Machine Agent
       win_package:
         path: C:\AzureConnectedMachineAgent.msi
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float <= arc_version | float
+        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Show Arc agent version
+    - name: Final version summary
       debug:
-        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ arc_version }}"
-
+        msg: >
+          Installed: {{ azcmagent_version_major_minor }},
+          Target: {{ arc_version_major_minor }},
+          Reinstall logic used operator: <=
     #################################
 
     # - name: Check if the Connected Machine Agent has already been connected on Windows
