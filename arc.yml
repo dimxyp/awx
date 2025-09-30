@@ -28,25 +28,45 @@
         path: C:\AzureConnectedMachineAgent.msi
       when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
 
-    - name: Check if the Connected Machine Agent has already been connected on Windows
-      win_command: azcmagent check --location "{{ azure.location }}"
-      register: azcmagent_win_connected
+    - name: Check if Azure Connected Machine Agent is installed
+      win_stat:
+        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+      register: azcmagent_installed
       when: ansible_os_family == 'Windows'
-      ignore_errors: yes
-      failed_when: (azcmagent_win_connected.rc not in [ 0, 16 ])
-      changed_when: False
 
-    - name: Connect the Connected Machine Agent on Windows servers to Azure Arc
-      win_shell: 
-        '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" connect --service-principal-id "{{ azure.service_principal_id }}" --service-principal-secret "{{ azure.service_principal_secret }}" --resource-group "{{ azure.resource_group }}" --tenant-id "{{ azure.tenant_id }}" --location "{{ azure.location }}" --subscription-id "{{ azure.subscription_id }}" --tags "ArcSQLServerExtensionDeployment=Disabled"'
-      when: (ansible_os_family == 'Windows') and (azcmagent_win_connected.rc is defined)
+    - name: Get Azure Connected Machine Agent version
+      win_command: '"C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" version'
+      register: azcmagent_version
+      when: azcmagent_installed.stat.exists
 
-    - name: Disable remote access capabilities
-      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set incomingconnections.enabled false'
+    - name: Extract major.minor version
+      set_fact:
+        azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
+      when: azcmagent_version is defined
+
+    - name: Show Arc agent version
+      debug:
+        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}"
+
+    # - name: Check if the Connected Machine Agent has already been connected on Windows
+    #   win_command: azcmagent check --location "{{ azure.location }}"
+    #   register: azcmagent_win_connected
+    #   when: ansible_os_family == 'Windows'
+    #   ignore_errors: yes
+    #   failed_when: (azcmagent_win_connected.rc not in [ 0, 16 ])
+    #   changed_when: False
+
+    # - name: Connect the Connected Machine Agent on Windows servers to Azure Arc
+    #   win_shell: 
+    #     '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" connect --service-principal-id "{{ azure.service_principal_id }}" --service-principal-secret "{{ azure.service_principal_secret }}" --resource-group "{{ azure.resource_group }}" --tenant-id "{{ azure.tenant_id }}" --location "{{ azure.location }}" --subscription-id "{{ azure.subscription_id }}" --tags "ArcSQLServerExtensionDeployment=Disabled"'
+    #   when: (ansible_os_family == 'Windows') and (azcmagent_win_connected.rc is defined)
+
+    # - name: Disable remote access capabilities
+    #   win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set incomingconnections.enabled false'
       
 
-    - name: Disable Guest Configuration on Windows
-      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set guestconfiguration.enabled false'
+    # - name: Disable Guest Configuration on Windows
+    #   win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set guestconfiguration.enabled false'
 
-    - name: Set Extension Allowlist on Windows
-      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set extensions.allowlist "Microsoft.SoftwareUpdateManagement/WindowsOsUpdateExtension,Microsoft.CPlat.Core/WindowsPatchExtension"'
+    # - name: Set Extension Allowlist on Windows
+    #   win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set extensions.allowlist "Microsoft.SoftwareUpdateManagement/WindowsOsUpdateExtension,Microsoft.CPlat.Core/WindowsPatchExtension"'
