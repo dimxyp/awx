@@ -18,11 +18,11 @@
       register: azcmagent_win_downloaded
       when: ansible_os_family == 'Windows'
 
-    # - name: Download the Connected Machine Agent on Windows servers
-    #   win_get_url:
-    #     url: https://aka.ms/AzureConnectedMachineAgent
-    #     dest: C:\AzureConnectedMachineAgent.msi
-    #   when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+    - name: Download the Connected Machine Agent on Windows servers
+      win_get_url:
+        url: https://aka.ms/AzureConnectedMachineAgent
+        dest: C:\AzureConnectedMachineAgent1.msi
+      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
 
     - name: Install the Connected Machine Agent on Windows servers
       win_package:
