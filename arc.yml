@@ -55,43 +55,42 @@
       set_fact:
         arc_version_major_minor: "{{ arc_version | regex_search('\\d+\\.\\d+') | default(arc_version) }}"
 
-    - name: Debug - Show detected and desired versions before uninstall
+    - name: Debug - Show detected and desired versions before upgrade
       debug:
         msg: |
           Installed (major.minor): {{ azcmagent_version_major_minor }}
           Target (major.minor):    {{ arc_version_major_minor }}
-          Condition (installed <= target): {{ (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float) }}
+          Will upgrade? {{ azcmagent_version_major_minor is version(arc_version_major_minor, '<') }}
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
 
-    - name: Uninstall agent if version <= target (adjust to < if you only want older)
+    - name: Uninstall agent if installed version is LOWER than target
       win_package:
         path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
         state: absent
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
+        - azcmagent_version_major_minor is version(arc_version_major_minor, '<')
 
-    - name: Remove existing MSI prior to (re)install
+    - name: Remove existing MSI prior to upgrade
       win_file:
         path: C:\AzureConnectedMachineAgent.msi
         state: absent
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
+        - azcmagent_version_major_minor is version(arc_version_major_minor, '<')
 
-    - name: Download MSI for upgrade / reinstall
+    - name: Download MSI for upgrade
       win_get_url:
         url: https://aka.ms/AzureConnectedMachineAgent
         dest: C:\AzureConnectedMachineAgent.msi
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
+        - azcmagent_version_major_minor is version(arc_version_major_minor, '<')
 
     - name: Install (upgrade) Connected Machine Agent
       win_package:
@@ -99,14 +98,15 @@
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - (azcmagent_version_major_minor | float) <= (arc_version_major_minor | float)
+        - azcmagent_version_major_minor is version(arc_version_major_minor, '<')
 
-    - name: Final version summary
+    - name: Skip message when version is already current
       debug:
-        msg: >
-          Installed: {{ azcmagent_version_major_minor }},
-          Target: {{ arc_version_major_minor }},
-          Reinstall logic used operator: <=
+        msg: "Agent already at target version ({{ azcmagent_version_major_minor }}), no action taken."
+      when:
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor is version(arc_version_major_minor, '==')
     #################################
 
     # - name: Check if the Connected Machine Agent has already been connected on Windows
