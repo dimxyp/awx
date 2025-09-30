@@ -1,7 +1,6 @@
 ---
 - name: "Onboard Windows Servers to Azure Arc-enabled servers with Public endpoint connectivity"
   hosts: all
-  gather_facts: false
   tasks:
     - name: Map azure vars to normalized names
       set_fact:
