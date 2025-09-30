@@ -3,37 +3,24 @@
   hosts: all
   gather_facts: false
   tasks:
-    - name: Show all azure variables
-      debug:
-        var: azure
+    - name: Map azure vars to normalized names
+      set_fact:
+        service_principal_id: "{{ azure.AZURE_SP_ID }}"
+        service_principal_secret: "{{ azure.AZURE_SP_SECRET }}"
+        resource_group: "{{ azure.AZURE_RG }}"
+        tenant_id: "{{ azure.AZURE_TENANT_ID }}"
+        subscription_id: "{{ azure.AZURE_SUB_ID }}"
+        location: "{{ azure.location | default('northeurope') }}"
 
-    - name: Show Service Principal ID
+    - name: Show all normalized variables
       debug:
-        msg: "Service Principal ID: {{ azure.AZURE_SP_ID }}"
-
-    - name: Show Service Principal Secret
-      debug:
-        msg: "Service Principal Secret: {{ azure.AZURE_SP_SECRET }}"
-
-    - name: Show Resource Group
-      debug:
-        msg: "Resource Group: {{ azure.AZURE_RG }}"
-
-    - name: Show Tenant ID
-      debug:
-        msg: "Tenant ID: {{ azure.AZURE_TENANT_ID }}"
-
-    - name: Show Subscription ID
-      debug:
-        msg: "Subscription ID: {{ azure.AZURE_SUB_ID }}"
-
-    - name: Show Arc Version
-      debug:
-        msg: "Arc Agent Target Version: {{ azure.AZURE_ARC_VERSION }}"
-
-    - name: Show Location
-      debug:
-        msg: "Location: {{ azure.location }}"
+        msg: |
+          service_principal_id: {{ service_principal_id }}
+          service_principal_secret: {{ service_principal_secret }}
+          resource_group: {{ resource_group }}
+          tenant_id: {{ tenant_id }}
+          subscription_id: {{ subscription_id }}
+          location: {{ location }}
   #tasks:
     # - name: Check if Connected Machine Agent MSI already exists
     #   win_stat:
