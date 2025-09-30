@@ -1,0 +1,52 @@
+---
+- name: "Onboard Windows Servers to Azure Arc-enabled servers with Public endpoint connectivity"
+  hosts: all
+  vars:
+    azure:
+      service_principal_id: "{{ lookup('env', 'AZURE_SP_ID') }}"
+      service_principal_secret: "{{ lookup('env', 'AZURE_SP_SECRET') }}"
+      resource_group: "{{ lookup('env', 'AZURE_RG') }}"
+      tenant_id: "{{ lookup('env', 'AZURE_TENANT_ID') }}"
+      subscription_id: "{{ lookup('env', 'AZURE_SUB_ID') }}"
+      location: 'northeurope'
+      proxy: ''
+  tasks:
+    - name: Check if Connected Machine Agent MSI already exists
+      win_stat:
+        path: C:\AzureConnectedMachineAgent.msi
+      register: azcmagent_win_downloaded
+      when: ansible_os_family == 'Windows'
+
+    - name: Download the Connected Machine Agent on Windows servers
+      win_get_url:
+        url: https://aka.ms/AzureConnectedMachineAgent
+        dest: C:\AzureConnectedMachineAgent.msi
+      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+
+    - name: Install the Connected Machine Agent on Windows servers
+      win_package:
+        path: C:\AzureConnectedMachineAgent.msi
+      when: (ansible_os_family == 'Windows') and (not azcmagent_win_downloaded.stat.exists)
+
+    - name: Check if the Connected Machine Agent has already been connected on Windows
+      win_command: azcmagent check --location "{{ azure.location }}"
+      register: azcmagent_win_connected
+      when: ansible_os_family == 'Windows'
+      ignore_errors: yes
+      failed_when: (azcmagent_win_connected.rc not in [ 0, 16 ])
+      changed_when: False
+
+    - name: Connect the Connected Machine Agent on Windows servers to Azure Arc
+      win_shell: 
+        '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" connect --service-principal-id "{{ azure.service_principal_id }}" --service-principal-secret "{{ azure.service_principal_secret }}" --resource-group "{{ azure.resource_group }}" --tenant-id "{{ azure.tenant_id }}" --location "{{ azure.location }}" --subscription-id "{{ azure.subscription_id }}" --tags "ArcSQLServerExtensionDeployment=Disabled"'
+      when: (ansible_os_family == 'Windows') and (azcmagent_win_connected.rc is defined)
+
+    - name: Disable remote access capabilities
+      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set incomingconnections.enabled false'
+      
+
+    - name: Disable Guest Configuration on Windows
+      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set guestconfiguration.enabled false'
+
+    - name: Set Extension Allowlist on Windows
+      win_shell: '& "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" config set extensions.allowlist "Microsoft.SoftwareUpdateManagement/WindowsOsUpdateExtension,Microsoft.CPlat.Core/WindowsPatchExtension"'
