@@ -9,6 +9,7 @@
         resource_group: "{{ azure.AZURE_RG }}"
         tenant_id: "{{ azure.AZURE_TENANT_ID }}"
         subscription_id: "{{ azure.AZURE_SUB_ID }}"
+        arc_version : "{{ azure.AZURE_ARC_VERSION }}"
         location: "{{ azure.location | default('northeurope') }}"
 
     - name: Check if Connected Machine Agent MSI already exists
@@ -51,7 +52,7 @@
       when: 
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+        - azcmagent_version_major_minor | float < arc_version | float
 
     - name: Download the Connected Machine Agent MSI for upgrade
       win_get_url:
