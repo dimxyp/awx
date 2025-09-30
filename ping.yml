@@ -1,6 +1,6 @@
 ---
-- name: Test connectivity to WIN2016
-  hosts: WIN2016
+- name: Test connectivity to all Windows hosts
+  hosts: all        # uses your inventory
   gather_facts: no
   tasks:
     - name: Ping the Windows host
