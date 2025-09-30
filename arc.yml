@@ -61,7 +61,7 @@
       when: 
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+        - azcmagent_version_major_minor | float < arc_version | float
 
     - name: Install the Connected Machine Agent MSI for upgrade
       win_package:
@@ -69,11 +69,11 @@
       when:
         - ansible_os_family == 'Windows'
         - azcmagent_version_major_minor is defined
-        - azcmagent_version_major_minor | float < azure.version | float
+        - azcmagent_version_major_minor | float < arc_version | float
 
     - name: Show Arc agent version
       debug:
-        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ azure.version }}"
+        msg: "Arc agent version: {{ azcmagent_version_major_minor | default('Not installed') }}, Target version: {{ arc_version }}"
 
     #################################
 
