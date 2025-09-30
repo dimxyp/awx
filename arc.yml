@@ -12,16 +12,17 @@
       location: "{{ azure.location }}"
       proxy: ''
 
-- name: Show azure variables nicely
-  debug:
-    msg: |
-      service_principal_id: {{ azure.service_principal_id }}
-      service_principal_secret: {{ azure.service_principal_secret }}
-      resource_group: {{ azure.resource_group }}
-      tenant_id: {{ azure.tenant_id }}
-      subscription_id: {{ azure.subscription_id }}
-      version: {{ azure.version }}
-      location: {{ azure.location }}
+  tasks:
+    - name: Show azure variables nicely
+      debug:
+        msg: |
+          service_principal_id: {{ azure.service_principal_id }}
+          service_principal_secret: {{ azure.service_principal_secret }}
+          resource_group: {{ azure.resource_group }}
+          tenant_id: {{ azure.tenant_id }}
+          subscription_id: {{ azure.subscription_id }}
+          version: {{ azure.version }}
+          location: {{ azure.location }}
   #tasks:
     # - name: Check if Connected Machine Agent MSI already exists
     #   win_stat:
