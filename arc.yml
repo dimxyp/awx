@@ -42,7 +42,7 @@
 
     - name: Extract major.minor version
       set_fact:
-        azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
+        azcmagent_version_major_minor: "{{ azcmagent_version.stdout | regex_search('[0-9]+\\.[0-9]+', '\\d+\\.\\d+') }}"
       when: azcmagent_version is defined
 
     - name: Debug - Show detected and desired versions before uninstall
