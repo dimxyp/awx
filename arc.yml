@@ -42,8 +42,16 @@
 
     - name: Extract major.minor version
       set_fact:
-        azcmagent_version_major_minor: "{{ azcmagent_version.stdout | regex_search('[0-9]+\\.[0-9]+', '\\d+\\.\\d+') }}"
-      when: azcmagent_version is defined
+        azcmagent_version_major_minor: >-
+          {{
+            (azcmagent_version.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+\\.[0-9]+', '\\1'))
+          }}
+      when: azcmagent_version is defined and
+            (azcmagent_version.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+\\.[0-9]+')) is not none
+
+    - name: Debug extracted agent major.minor version
+      debug:
+        msg: "Extracted major.minor agent version: {{ azcmagent_version_major_minor | default('NOT FOUND') }}"
 
     - name: Debug - Show detected and desired versions before uninstall
       debug:
