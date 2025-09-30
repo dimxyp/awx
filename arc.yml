@@ -45,6 +45,17 @@
         azcmagent_version_major_minor: "{{ azcmagent_version.stdout.split('.')[0:2] | join('.') }}"
       when: azcmagent_version is defined
 
+    - name: Debug - Show detected and desired versions before uninstall
+      debug:
+        msg: |
+          Arc agent installed version: {{ azcmagent_version_major_minor }}
+          Target version: {{ arc_version }}
+          Uninstall will run because {{ azcmagent_version_major_minor }} < {{ arc_version }}
+      when: 
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor | float < arc_version | float
+
     - name: Compare Arc agent version and uninstall if outdated
       win_package:
         path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
@@ -54,6 +65,15 @@
         - azcmagent_version_major_minor is defined
         - azcmagent_version_major_minor | float < arc_version | float
 
+    - name: Remove existing Connected Machine Agent MSI file before upgrade
+      win_file:
+        path: C:\AzureConnectedMachineAgent.msi
+        state: absent
+      when: 
+        - ansible_os_family == 'Windows'
+        - azcmagent_version_major_minor is defined
+        - azcmagent_version_major_minor | float < arc_version | float
+        
     - name: Download the Connected Machine Agent MSI for upgrade
       win_get_url:
         url: https://aka.ms/AzureConnectedMachineAgent
