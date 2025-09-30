@@ -8,7 +8,7 @@
       resource_group: "{{ lookup('env', 'AZURE_RG') }}"
       tenant_id: "{{ lookup('env', 'AZURE_TENANT_ID') }}"
       subscription_id: "{{ lookup('env', 'AZURE_SUB_ID') }}"
-      location: 'northeurope'
+      location: 'germanywestcentral'
       proxy: ''
   tasks:
     - name: Check if Connected Machine Agent MSI already exists
