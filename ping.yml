@@ -1,0 +1,15 @@
+---
+- name: Test connectivity to WIN2016
+  hosts: WIN2016
+  gather_facts: no
+  tasks:
+    - name: Ping the Windows host
+      win_ping:
+
+    - name: Check Windows version
+      win_command: systeminfo
+      register: system_info
+
+    - name: Show Windows system info
+      debug:
+        var: system_info.stdout
