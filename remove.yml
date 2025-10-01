@@ -81,43 +81,43 @@
         - arc_bin.stat.exists
         - arc_still_connected | bool
 
-    # OPTIONAL CLEANUP (Uncomment if you want full removal)
-    # - name: Find Arc agent ProductCode (registry)
-    #   win_shell: |
-    #     $paths = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
-    #              'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-    #     foreach ($p in $paths){
-    #       Get-ItemProperty -Path $p -ErrorAction SilentlyContinue |
-    #         Where-Object { $_.DisplayName -like 'Azure Connected Machine Agent*' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$'} |
-    #         Select-Object -ExpandProperty PSChildName
-    #     }
-    #   register: arc_guid_raw
-    #   changed_when: false
-    #   failed_when: false
-    #   when:
-    #     - ansible_os_family == 'Windows'
-    #     - not arc_still_connected | bool
-    #
-    # - name: Set product code fact
-    #   set_fact:
-    #     arc_product_code: "{{ (arc_guid_raw.stdout_lines | select('match','^\\{.*\\}$') | list | first) | default('') }}"
-    #   when:
-    #     - ansible_os_family == 'Windows'
-    #
-    # - name: Uninstall Arc agent (MSI)
-    #   win_package:
-    #     product_id: "{{ arc_product_code }}"
-    #     state: absent
-    #   when:
-    #     - ansible_os_family == 'Windows'
-    #     - arc_product_code != ''
-    #
-    # - name: Remove leftover program folder (best effort)
-    #   win_file:
-    #     path: 'C:\Program Files\AzureConnectedMachineAgent'
-    #     state: absent
-    #   when:
-    #     - ansible_os_family == 'Windows'
+     # OPTIONAL CLEANUP (Uncomment if you want full removal)
+    - name: Find Arc agent ProductCode (registry)
+      win_shell: |
+        $paths = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        foreach ($p in $paths){
+          Get-ItemProperty -Path $p -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Azure Connected Machine Agent*' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$'} |
+            Select-Object -ExpandProperty PSChildName
+        }
+      register: arc_guid_raw
+      changed_when: false
+      failed_when: false
+      when:
+        - ansible_os_family == 'Windows'
+        - not arc_still_connected | bool
+    
+    - name: Set product code fact
+      set_fact:
+        arc_product_code: "{{ (arc_guid_raw.stdout_lines | select('match','^\\{.*\\}$') | list | first) | default('') }}"
+      when:
+        - ansible_os_family == 'Windows'
+    
+    - name: Uninstall Arc agent (MSI)
+      win_package:
+        product_id: "{{ arc_product_code }}"
+        state: absent
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_product_code != ''
+    
+    - name: Remove leftover program folder (best effort)
+      win_file:
+        path: 'C:\Program Files\AzureConnectedMachineAgent'
+        state: absent
+      when:
+        - ansible_os_family == 'Windows'
 
     - name: Final summary
       debug:
