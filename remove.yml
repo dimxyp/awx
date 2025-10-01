@@ -6,7 +6,10 @@
       set_fact:
         service_principal_id: "{{ azure.AZURE_SP_ID }}"
         service_principal_secret: "{{ azure.AZURE_SP_SECRET }}"
-    
+        resource_group: "{{ azure.AZURE_RG }}"
+        tenant_id: "{{ azure.AZURE_TENANT_ID }}"
+        location: "{{ azure.location | default('germanywestcentral') }}"
+
     - name: Check if azcmagent binary exists
       ansible.windows.win_stat:
         path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
@@ -24,6 +27,10 @@
         & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" disconnect
         --service-principal-id "{{ azure.AZURE_SP_ID }}"
         --service-principal-secret "{{ azure.AZURE_SP_SECRET }}"
+        --resource-group "{{ azure.AZURE_RG }}" 
+        --tenant-id "{{ azure.AZURE_TENANT_ID }}" 
+        --location "{{ azure.location }}"
+
       register: arc_disconnect
       when: arc_bin.stat.exists
       changed_when: >
