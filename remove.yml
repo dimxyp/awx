@@ -119,6 +119,13 @@
       when:
         - ansible_os_family == 'Windows'
 
+    - name: Remove existing MSI prior to upgrade
+      win_file:
+        path: C:\AzureConnectedMachineAgent.msi
+        state: absent
+      when:
+        - ansible_os_family == 'Windows'
+
     - name: Final summary
       debug:
         msg: >
