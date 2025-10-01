@@ -44,6 +44,12 @@
       changed_when: false
       when: arc_bin.stat.exists
 
+    - name: Uninstall agent if installed version is LOWER than target
+      win_package:
+        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+        state: absent
+      when: arc_bin.stat.exists
+
     - name: Remove existing MSI prior to upgrade
       win_file:
         path: C:\AzureConnectedMachineAgent.msi
