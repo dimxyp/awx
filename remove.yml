@@ -1,5 +1,5 @@
 ---
-- name: "Disboard Windows Servers to Azure Arc-enabled "
+- name: "Offboard Windows Servers from Azure Arc-enabled"
   hosts: all
   gather_facts: true
   tasks:
@@ -9,7 +9,7 @@
       register: arc_bin
       when: ansible_os_family == 'Windows'
 
-    - name: Probe current connection status (optional)
+    - name: Probe current connection status
       win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show'
       register: arc_show
       failed_when: false
@@ -18,18 +18,111 @@
         - ansible_os_family == 'Windows'
         - arc_bin.stat.exists
 
-    - name: Debug current Arc connection (optional)
+    - name: Debug current Arc connection
       debug:
         msg: "{{ (arc_show.stdout | default('')).splitlines() }}"
       when:
         - ansible_os_family == 'Windows'
         - arc_bin.stat.exists
 
-    - name: Disconnect existing Azure Arc connection (force + purge)
-      win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" disconnect --force --purge'
-      register: arc_disconnect
-      changed_when: "'disconnected' in (arc_disconnect.stdout | lower) or arc_disconnect.rc == 0"
+    # Optional: Stop the service first (sometimes helps purge succeed cleanly)
+    - name: Stop Arc agent service (himds) before disconnect (best effort)
+      win_service:
+        name: himds
+        state: stopped
+      register: arc_service_stop
       failed_when: false
       when:
         - ansible_os_family == 'Windows'
         - arc_bin.stat.exists
+
+    - name: Disconnect existing Azure Arc connection (force + purge)
+      win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" disconnect --force --purge --verbose'
+      register: arc_disconnect
+      # Mark changed only if output indicates a disconnect actually occurred
+      changed_when: >
+        ('disconnected' in (arc_disconnect.stdout | lower)) or
+        ('successfully' in (arc_disconnect.stdout | lower))
+      failed_when: false
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    - name: Show disconnect raw result
+      debug:
+        var: arc_disconnect
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    - name: Post-check status after disconnect
+      win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show'
+      register: arc_show_after
+      failed_when: false
+      changed_when: false
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    - name: Determine if machine still reports connected
+      set_fact:
+        arc_still_connected: "{{ 'Resource Group Name' in (arc_show_after.stdout | default('')) or 'Resource Group' in (arc_show_after.stdout | default('')) }}"
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    - name: Warn if still connected
+      debug:
+        msg: |
+          WARNING: Machine still appears connected after disconnect attempt.
+          You may need to re-run with service stopped, or uninstall the agent.
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+        - arc_still_connected | bool
+
+    # OPTIONAL CLEANUP (Uncomment if you want full removal)
+    # - name: Find Arc agent ProductCode (registry)
+    #   win_shell: |
+    #     $paths = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    #              'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    #     foreach ($p in $paths){
+    #       Get-ItemProperty -Path $p -ErrorAction SilentlyContinue |
+    #         Where-Object { $_.DisplayName -like 'Azure Connected Machine Agent*' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$'} |
+    #         Select-Object -ExpandProperty PSChildName
+    #     }
+    #   register: arc_guid_raw
+    #   changed_when: false
+    #   failed_when: false
+    #   when:
+    #     - ansible_os_family == 'Windows'
+    #     - not arc_still_connected | bool
+    #
+    # - name: Set product code fact
+    #   set_fact:
+    #     arc_product_code: "{{ (arc_guid_raw.stdout_lines | select('match','^\\{.*\\}$') | list | first) | default('') }}"
+    #   when:
+    #     - ansible_os_family == 'Windows'
+    #
+    # - name: Uninstall Arc agent (MSI)
+    #   win_package:
+    #     product_id: "{{ arc_product_code }}"
+    #     state: absent
+    #   when:
+    #     - ansible_os_family == 'Windows'
+    #     - arc_product_code != ''
+    #
+    # - name: Remove leftover program folder (best effort)
+    #   win_file:
+    #     path: 'C:\Program Files\AzureConnectedMachineAgent'
+    #     state: absent
+    #   when:
+    #     - ansible_os_family == 'Windows'
+
+    - name: Final summary
+      debug:
+        msg: >
+          Disconnect attempt complete. Still connected? {{
+            arc_still_connected | default(false)
+          }}.
+          (If true, inspect arc_disconnect.stdout, stop the service, or uninstall.)
