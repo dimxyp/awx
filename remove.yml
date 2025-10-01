@@ -1,0 +1,16 @@
+- name: Uninstall Azure Arc Agent from Windows servers
+  hosts: windows_servers
+  gather_facts: no
+  tasks:
+    - name: Get GUID of Azure Connected Machine Agent
+      ansible.windows.win_shell: |
+        $guid = (Get-WmiObject -Class Win32_Product |
+          Where-Object { $_.Name -like "*Azure Connected Machine Agent*" } |
+          Select-Object -ExpandProperty IdentifyingNumber)
+        Write-Output $guid
+      register: arc_guid
+
+    - name: Uninstall Azure Arc Agent using discovered GUID
+      ansible.windows.win_package:
+        path: "MsiExec.exe /x {{ arc_guid.stdout }} /qn"
+        state: absent
