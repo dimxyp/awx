@@ -1,16 +1,39 @@
-- name: Uninstall Azure Arc Agent from Windows servers
-  hosts: windows_servers
-  gather_facts: no
+---
+- name: "Disboard Windows Servers to Azure Arc-enabled "
+  hosts: all
+  gather_facts: true
   tasks:
-    - name: Get GUID of Azure Connected Machine Agent
-      ansible.windows.win_shell: |
-        $guid = (Get-WmiObject -Class Win32_Product |
-          Where-Object { $_.Name -like "*Azure Connected Machine Agent*" } |
-          Select-Object -ExpandProperty IdentifyingNumber)
-        Write-Output $guid
-      register: arc_guid
+    - name: Check if azcmagent binary exists (to decide if we can disconnect)
+      win_stat:
+        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+      register: arc_bin
+      when: ansible_os_family == 'Windows'
 
-    - name: Uninstall Azure Arc Agent using discovered GUID
-      ansible.windows.win_package:
-        path: "MsiExec.exe /x {{ arc_guid.stdout }} /qn"
-        state: absent
+    - name: Probe current connection status (optional)
+      win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show'
+      register: arc_show
+      failed_when: false
+      changed_when: false
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    - name: Debug current Arc connection (optional)
+      debug:
+        msg: "{{ (arc_show.stdout | default('')).splitlines() }}"
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+
+    # If you ONLY want to disconnect when it's actually connected,
+    # keep the "'Resource group'" check. If you want to always disconnect when binary exists,
+    # remove the third condition.
+    - name: Disconnect existing Azure Arc connection (force + purge)
+      win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" disconnect --force --purge'
+      register: arc_disconnect
+      changed_when: "'disconnected' in (arc_disconnect.stdout | lower) or arc_disconnect.rc == 0"
+      failed_when: false
+      when:
+        - ansible_os_family == 'Windows'
+        - arc_bin.stat.exists
+        - "'Resource group' in (arc_show.stdout | default(''))"
