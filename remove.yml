@@ -44,11 +44,52 @@
       changed_when: false
       when: arc_bin.stat.exists
 
-    - name: Uninstall agent 
-      win_package:
-        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
-        state: absent
+    - name: Discover Arc agent ProductCode (registry)
+      ansible.windows.win_shell: |
+        $roots = @(
+          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+          'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        )
+        foreach ($r in $roots) {
+          Get-ItemProperty -Path $r -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Azure Connected Machine Agent*' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$' } |
+            Select-Object -ExpandProperty PSChildName
+        }
+      register: arc_product_code_raw
+      changed_when: false
+      failed_when: false
       when: arc_bin.stat.exists
+
+    - name: Set product code fact
+      ansible.builtin.set_fact:
+        arc_product_code: "{{ (arc_product_code_raw.stdout_lines | select('match','^\\{.*\\}$') | list | first) | default('') }}"
+      when: arc_bin.stat.exists
+
+    - name: Debug found ProductCode
+      ansible.builtin.debug:
+        msg: "Arc agent ProductCode: {{ arc_product_code | default('NOT FOUND') }}"
+      when: arc_bin.stat.exists
+
+    - name: Uninstall Azure Arc agent (MSI product)
+      ansible.windows.win_package:
+        product_id: "{{ arc_product_code }}"
+        state: absent
+      register: arc_uninstall
+      when:
+        - arc_bin.stat.exists
+        - arc_product_code != ''
+
+    - name: Verify binary removal
+      ansible.windows.win_stat:
+        path: 'C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe'
+      register: arc_bin_after
+      when: arc_bin.stat.exists
+
+    - name: Remove program folder (best effort)
+      ansible.windows.win_file:
+        path: 'C:\Program Files\AzureConnectedMachineAgent'
+        state: absent
+      when: arc_product_code != ''
 
     - name: Remove existing MSI 
       win_file:
@@ -56,16 +97,15 @@
         state: absent
       when: arc_bin.stat.exists
 
-    - name: Summary
+    - name: Summary (single-line)
       ansible.builtin.debug:
-        msg: |
-          Pre-status present: {{ (arc_show_pre.stdout is defined) }}
-          Remote delete reported: {{ arc_deleted_remote | default(false) }}
-          Disconnect stdout:
-          {{ arc_disconnect.stdout | default('') }}
-          Purge attempted: {{ arc_purge is defined }}
-          Post show (raw):
-          {{ arc_show_post.stdout | default('N/A') }}
+        msg: >-
+          arc_offboard pre_status_present={{ arc_show_pre.stdout is defined }}
+          remote_delete={{ arc_deleted_remote | default(false) }}
+          purge_attempted={{ arc_purge is defined }}
+          uninstall_changed={{ arc_uninstall.changed | default(false) if (arc_uninstall is defined) else false }}
+          product_code="{{ arc_product_code | default('') }}"
+          post_show_len={{ (arc_show_post.stdout | default('')) | length }}
     
 
 
