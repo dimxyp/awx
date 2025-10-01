@@ -25,9 +25,6 @@
         - ansible_os_family == 'Windows'
         - arc_bin.stat.exists
 
-    # If you ONLY want to disconnect when it's actually connected,
-    # keep the "'Resource group'" check. If you want to always disconnect when binary exists,
-    # remove the third condition.
     - name: Disconnect existing Azure Arc connection (force + purge)
       win_shell: '& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" disconnect --force --purge'
       register: arc_disconnect
@@ -36,4 +33,3 @@
       when:
         - ansible_os_family == 'Windows'
         - arc_bin.stat.exists
-        - "'Resource group' in (arc_show.stdout | default(''))"
